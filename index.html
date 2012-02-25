@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=7, IE=9" />
+    <!--The viewport meta tag is used to improve the presentation and behavior of the samples
+      on iOS devices-->
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no"/>
+    <title>Philly Bike Rack Locations</title>
+    <link rel="stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/2.7/js/dojo/dijit/themes/claro/claro.css">
+    <link rel="stylesheet" type="text/css" href="http://serverapi.arcgisonline.com/jsapi/arcgis/2.7/js/esri/dijit/css/Popup.css">
+    <style>
+      html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+      .esriScalebar{
+        padding: 20px 20px;
+      }
+      #map{
+        padding:0;
+      }
+      .esriPopup.myTheme .titlePane,
+      .dj_ie7 .esriPopup.myTheme .titlePane .title {
+        background-color: #899752;
+        color: #333333;
+        font-weight: bold;
+      }
+      .esriPopup.myTheme .titlePane {
+        border-bottom: 1px solid #121310;
+      }
+      .esriPopup.myTheme a {
+        color: #d6e68a;
+      }
+      .esriPopup.myTheme .titleButton,
+      .esriPopup.myTheme .pointer,
+      .esriPopup.myTheme .outerPointer,
+      .esriPopup.myTheme .esriViewPopup .gallery .mediaHandle,
+      .esriPopup.myTheme .esriViewPopup .gallery .mediaIcon {
+          background-image: url(images/popup.png);
+      }
+      .esriPopup.myTheme .contentPane,
+      .esriPopup.myTheme .actionsPane {
+        border-color: 1px solid #121310;
+        background-color: #424242;
+        color:#ffffff;
+     }
+
+
+    </style>
+    <script type="text/javascript">var dojoConfig = {parseOnLoad: true};</script>
+    <script type="text/javascript" src="http://serverapi.arcgisonline.com/jsapi/arcgis/?v=2.7"></script>
+    <script type="text/javascript">
+      dojo.require("dijit.layout.BorderContainer");
+      dojo.require("dijit.layout.ContentPane");
+      dojo.require("esri.map");
+      dojo.require("esri.dijit.Popup");
+      dojo.require("esri.layers.FeatureLayer");
+
+      var map;
+
+      function pageReady() {
+        var popup = new esri.dijit.Popup({
+          fillSymbol: new esri.symbol.SimpleFillSymbol(esri.symbol.SimpleFillSymbol.STYLE_SOLID, new esri.symbol.SimpleLineSymbol(esri.symbol.SimpleLineSymbol.STYLE_SOLID, new dojo.Color([255,0,0]), 2), new dojo.Color([255,255,0,0.25]))
+        }, dojo.create("div"));
+
+
+        var initExtent = new esri.geometry.Extent({"xmin":-8401848.31378072,"ymin":4858589.25870394,"xmax":-8323793.98086539,"ymax":4889506.17718086,"spatialReference":{"wkid":102100}});
+        map = new esri.Map("map",{
+          extent:initExtent,
+          infoWindow:popup,
+          outFields: ["*"]
+        });
+
+        dojo.addClass(map.infoWindow.domNode, "myTheme");
+
+
+        dojo.connect(map,"onClick",function(evt){
+          var query = new esri.tasks.Query();
+          query.geometry = pointToExtent(map,evt.mapPoint,10);
+
+          var deferred = featureLayer.selectFeatures(query,esri.layers.FeatureLayer.SELECTION_NEW);
+
+           map.infoWindow.setFeatures([deferred]);
+           map.infoWindow.show(evt.mapPoint);
+
+        });
+
+        //Add the topographic layer to the map. View the ArcGIS Online site for services http://arcgisonline/home/search.html?t=content&f=typekeywords:service
+        var basemap = new esri.layers.ArcGISTiledMapServiceLayer("http://gis.phila.gov/ArcGIS/rest/services/BaseMaps/MobileBase/MapServer");
+        map.addLayer(basemap);
+
+        var bikeRackLayer = new esri.layers.ArcGISDynamicMapServiceLayer("http://gis.phila.gov/ArcGIS/rest/services/Streets/Bike_Racks/MapServer");
+        map.addLayer(bikeRackLayer);
+
+
+        var template = new esri.InfoTemplate();
+        template.setContent(getTextContent);
+
+        var featureLayer = new esri.layers.FeatureLayer("http://gis.phila.gov/ArcGIS/rest/services/Streets/Bike_Racks/MapServer/0",{
+          mode: esri.layers.FeatureLayer.MODE_SELECTION,
+         outFields: ["*"],
+          infoTemplate:template
+        });
+
+        map.addLayer(featureLayer);
+
+
+        dojo.connect(map, 'onLoad', function(theMap) {
+         //resize the map when the browser resizes
+         dojo.connect(dijit.byId('map'), 'resize', map,map.resize);
+        });
+      }
+
+     function getTextContent(graphic) {
+       var content;
+       content = graphic.attributes.LOCATION
+        return  content + "<br/> Rack Type:" + graphic.attributes.RACK_TYPE  + "<br/> Number of Racks: " + graphic.attributes.NUM_RACKS;
+
+      }
+
+     function pointToExtent(map, point, toleranceInPixel) {
+       var pixelWidth = map.extent.getWidth() / map.width;
+       var toleraceInMapCoords = toleranceInPixel * pixelWidth;
+       return new esri.geometry.Extent( point.x - toleraceInMapCoords,
+                    point.y - toleraceInMapCoords,
+                    point.x + toleraceInMapCoords,
+                    point.y + toleraceInMapCoords,
+                    map.spatialReference );
+      }
+
+      dojo.addOnLoad(pageReady);
+    </script>
+  </head>
+
+  <body class="claro">
+    <div data-dojo-type="dijit.layout.BorderContainer" data-dojo-props="design:'headline'" style="width: 100%; height: 100%; margin: 0;">
+      <div id="map" data-dojo-type="dijit.layout.ContentPane" data-dojo-props="region:'center'" style="border:1px solid #000;padding:0;">
+     </div>
+    </div>
+  </body>
+
+</html>
+
